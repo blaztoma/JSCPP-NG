@@ -62,6 +62,11 @@ export interface IStreamValue extends InitValue<IStreamVariable> {
         "badbit": InitArithmeticVariable,
         /** The fail status flag (no or unformatted input, bad file name, etc.) */
         "failbit": InitArithmeticVariable,
+        /** The boolalpha input modifier flag (treat "true", "false" as bool values) */
+        "boolalpha": InitArithmeticVariable,
+        /** The skipws input modifier flag (skip whitespace) */
+        "skipws": InitArithmeticVariable,
+        
     },
 }
 
@@ -159,9 +164,19 @@ export const iomanip_token_mode = {
     /** Set the positioning of a field to internal. */
     internal: 22,
 
-    /** Set the positioning of a field to noboolalpha. */
+    /** Set the input not to interpret "true" and "false" as bool values true and false. 
+      * Set the output to write "0" or "1" for values of bool types true and false. */
     noboolalpha: 30,
 
-    /** Set the positioning of a field to noboolalpha. */
+    /** Set the input to interpret "true" and "false" as bool values true and false. 
+      * Set the output to write "true" or "false" for values of bool types true and false. */
     boolalpha: 31,
+
+    /** Set the input to read whitespace characters. 
+      * Do nothing if the output stream is given. */
+    noskipws: 40,
+
+    /** Set the input to omit whitespace characters.
+      * Do nothing if the output stream is given. */
+    skipws: 41,
 } as const;

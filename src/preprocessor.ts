@@ -124,7 +124,7 @@ class Preprocessor extends BaseInterpreter<Statement> {
                         includes
                     } = interp.rt.config;
                     if (s.name in includes) {
-                        includes[s.name].load(interp.rt);
+                        interp.rt.include(s.name);// includes[s.name].load(interp.rt);
                     } else {
                         interp.rt.raiseException("cannot find file: " + s.name);
                     }

@@ -4,10 +4,11 @@ import * as ios_base from "../shared/ios_base";
 import * as common from "../shared/common";
 import * as utf8 from "../utf8";
 import { AbstractVariable, ArithmeticVariable, ClassType, ClassVariable, InitArithmeticVariable, InitIndexPointerVariable, InitPointerVariable, MaybeLeft, PointerVariable, variables } from "../variables";
+import { IOManipTokenVariable, iomanip_token_mode } from "../shared/ios_base";
 
 type IfstreamValue = ios_base.IStreamValue & {
     members: {
-        _is_open: InitArithmeticVariable
+        _is_open: InitArithmeticVariable,
     }
 };
 type IfStreamVariable = AbstractVariable<ios_base.OStreamType, IfstreamValue>;
@@ -61,6 +62,14 @@ export = {
             {
                 name: "_is_open",
                 variable: variables.arithmetic("BOOL", 0, "SELF"),
+            },
+            {
+                name: "boolalpha",
+                variable: variables.arithmetic("BOOL", 0, "SELF"),
+            },
+            {
+                name: "skipws",
+                variable: variables.arithmetic("BOOL", 1, "SELF"),
             }
         ], {});
 
@@ -107,7 +116,7 @@ export = {
                             return l;
                         }
                         char = rt.arithmeticValue(variables.arrayMember(buf.v.pointee, buf.v.index));
-                        if (!(whitespaceChars.includes(char))) {
+                        if (l.v.members.skipws.v.value === 0 || !(whitespaceChars.includes(char))) {
                             break;
                         }
                         buf.v.index++;
@@ -215,6 +224,7 @@ export = {
                     return l;
                 }
             },
+
         ]);
 
         const thisType = (rt.simpleType(["ifstream"]) as MaybeLeft<ClassType>).t;

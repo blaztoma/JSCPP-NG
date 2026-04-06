@@ -1960,10 +1960,16 @@ export class Interpreter extends BaseInterpreter<InterpStatement> {
         }
         const { includes, loadedLibraries } = this.rt.config;
 
+        let accessedLibraries = new Set<string>();
+
         for (const lib of loadedLibraries) {
             if (lastToLoad.includes(lib))
                 continue;
 
+            if (accessedLibraries.has(lib)) {
+                continue;
+            }
+            accessedLibraries.add(lib);
             includes[lib].load(this.rt);
         }
 
@@ -1971,6 +1977,10 @@ export class Interpreter extends BaseInterpreter<InterpStatement> {
             if (!loadedLibraries.includes(lib))
                 continue;
 
+            if (accessedLibraries.has(lib)) {
+                continue;
+            }
+            accessedLibraries.add(lib);
             includes[lib].load(this.rt);
         }
     };

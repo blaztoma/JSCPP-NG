@@ -9,6 +9,7 @@ import { sizeUntilNull, StringVariable } from "../shared/string_utils";
 
 export = {
     load(rt: CRuntime) {
+
         rt.include("cctype"); // gcc-specific
         rt.include("string");
         rt.include("cstdio"); // gcc-specific
@@ -34,6 +35,14 @@ export = {
             {
                 name: "failbit",
                 variable: variables.arithmetic("BOOL", 0, "SELF"),
+            },
+            {
+                name: "boolalpha",
+                variable: variables.arithmetic("BOOL", 0, "SELF"),
+            },
+            {
+                name: "skipws",
+                variable: variables.arithmetic("BOOL", 1, "SELF"),
             },
         ], {});
         const cinType = rt.simpleType(["istream"]) as MaybeLeft<IStreamType>;
@@ -138,7 +147,7 @@ export = {
                         failbit.v.value = 1;
                         return l;
                     }
-                    if (!(whitespaceChars.includes(char.v.value))) {
+                    if (l.v.members.skipws.v.value === 0 || !(whitespaceChars.includes(char.v.value))) {
                         break;
                     }
                     variables.indexPointerAssignIndex(rt, buf, buf.v.index + 1);
