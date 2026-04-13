@@ -189,7 +189,7 @@ export interface XAbstractDeclarator extends StatementMeta {
 }
 export interface XCastExpression extends StatementMeta {
     type: "CastExpression",
-    TypeName: XTypeName,
+    TypeName: XTypeId,
     Expression: XIdentifierExpression | PostfixExpression
 }
 export interface XNewExpression extends StatementMeta {
@@ -226,6 +226,22 @@ export interface XIterationStatement_foreach extends StatementMeta {
     Initializer?: XDeclaration,
     Statement: XCompoundStatement,
 }
+export interface XTypeId extends StatementMeta {
+    type: "TypeId"
+    spec: TypeSpecifier,
+}
+export type TypeSpecifier = TypeSpecifier_basic | TypeSpecifier_decltype | XScopedMaybeTemplatedIdentifier;
+export type TypeSpecifier_basic = {
+    type: "TypeSpecifier_basic",
+    id: "b" | "f" | "d" | "ld" | "v" | "a" | "c" | "si" | "li" | "lli" | "i",
+    mod_sign?: "s" | "u",
+    mod_cv?: "c" | "v"
+}
+export type TypeSpecifier_decltype = {
+    type: "TypeSpecifier_decltype",
+    expression: any, /* XExpression */
+}
+
 type DeclaratorYield = { name: string, type: MaybeLeft<ObjectType> };
 
 type InterpStatement = any;
@@ -239,6 +255,53 @@ type ParameterTypeListResult = {
 type DirectDeclaratorResult = {
     type: MaybeLeft<ObjectType>,
     name: string
+}
+
+function resolveTypeId(rt: CRuntime, s: XTypeId): MaybeLeftCV<ObjectType> | "VOID" | "AUTO" {
+
+    debugger;
+    const isConst = ("mod_cv" in s.spec) && ((s.spec as any).mod_cv === "c");
+    switch (s.spec.type) {
+        case "TypeSpecifier_basic":
+            const isUnsigned = ("mod_sign" in s.spec) && (s.spec.mod_sign === "u");
+            switch (s.spec.id) {
+                case "a":
+                    return "AUTO";
+                case "v":
+                    return "VOID";
+                case "c":
+                    return { t: { sig: isUnsigned ? "U8" : "I8" }, v: { lvHolder: null, isConst } }
+                case "si":
+                    return { t: { sig: isUnsigned ? "U16" : "I16" }, v: { lvHolder: null, isConst } }
+                case "i":
+                    return { t: { sig: isUnsigned ? "U32" : "I32" }, v: { lvHolder: null, isConst } }
+                case "li":
+                    return { t: { sig: isUnsigned ? "U32" : "I32" }, v: { lvHolder: null, isConst } }
+                case "lli":
+                    return { t: { sig: isUnsigned ? "U64" : "I64" }, v: { lvHolder: null, isConst } }
+                case "f":
+                    return { t: { sig: "F32" }, v: { lvHolder: null, isConst } }
+                case "d":
+                    return { t: { sig: "F64" }, v: { lvHolder: null, isConst } }
+                case "ld":
+                    return { t: { sig: "F64" }, v: { lvHolder: null, isConst } }
+                case "b":
+                    return { t: { sig: "BOOL" }, v: { lvHolder: null, isConst } }
+                default:
+                    rt.raiseException("Type-id error: unreachable");
+            }
+        case "TypeSpecifier_decltype":
+            rt.raiseException("Type-id error: Not yet implemented");
+        case "ScopedMaybeTemplatedIdentifier":
+            let r = rt.simpleType([s.spec]);
+            if (r === "VOID") {
+                return r;
+            }
+            (r.v as any).isConst = isConst
+            return r as MaybeLeftCV<ObjectType>;
+    }
+
+
 }
 
 export class Interpreter extends BaseInterpreter<InterpStatement> {
@@ -1530,9 +1593,11 @@ export class Interpreter extends BaseInterpreter<InterpStatement> {
                 } = interp);
                 let ret = yield* interp.visit(interp, s.Expression, param);
                 ret = variables.clone(rt, ret, null, false);
-                const type = (yield* interp.visit(interp, s.TypeName, param)) as MaybeLeft<ObjectType> | "VOID";
+                const type = resolveTypeId(rt, s.TypeName);
                 if (type === "VOID") {
                     rt.raiseException("Cast error: Cannot cast to void");
+                } else if (type === "AUTO") {
+                    rt.raiseException("Cast error: Cannot cast to auto");
                 }
                 return rt.cast(type.t, ret, true);
             },
@@ -1892,9 +1957,9 @@ export class Interpreter extends BaseInterpreter<InterpStatement> {
         let ret;
         const { rt } = interp;
         //console.log(`${s.sLine}: visiting ${s.type}`);
-        if (!rt.debug.isTriggered 
-                && (rt.debug.lastLine === null || rt.debug.lastLine !== s.sLine)
-                && s.type !== "CompoundStatement") {
+        if (!rt.debug.isTriggered
+            && (rt.debug.lastLine === null || rt.debug.lastLine !== s.sLine)
+            && s.type !== "CompoundStatement") {
             rt.debug.lastLine = s.sLine;
             let trigger: boolean = (!rt.debug.hasPassedFirstLine && rt.debug.depth > 0)
                 || (rt.debug.proceedMode === "stepout" && rt.debug.depth < rt.debug.lastDepth)
