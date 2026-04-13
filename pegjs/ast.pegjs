@@ -8,14 +8,14 @@
   };
 
   function addPositionInfo(r){
-      var posDetails = peg$computePosDetails(peg$currPos);
-      r.eLine = posDetails.line;
-      r.eColumn = posDetails.column;
-      r.eOffset = peg$currPos;
-      posDetails = peg$computePosDetails(peg$savedPos);
-      r.sLine = posDetails.line;
-      r.sColumn = posDetails.column;
-      r.sOffset = peg$savedPos;
+      //var posDetails = peg$computePosDetails(peg$currPos);
+      //r.eLine = posDetails.line;
+      //r.eColumn = posDetails.column;
+      //r.eOffset = peg$currPos;
+      //posDetails = peg$computePosDetails(peg$savedPos);
+      //r.sLine = posDetails.line;
+      //r.sColumn = posDetails.column;
+      //r.sOffset = peg$savedPos;
       return r;
   }
 }
@@ -213,8 +213,7 @@ InitDeclarator
 StorageClassSpecifier
     = a:(EXTERN
     / STATIC
-    / REGISTER
-    / ATTRIBUTE LPAR LPAR (!RPAR _)* RPAR RPAR) {
+    / REGISTER) {
       return a;
     }
     ;
@@ -231,7 +230,6 @@ TypeSpecifier
     / SIGNED
     / UNSIGNED
     / BOOL
-    / COMPLEX
     / EnumSpecifier) {
       return a;
     }
@@ -263,15 +261,11 @@ Enumerator
     ;
 
 TypeQualifier
-    = a:(CONST) {
-      return a;
-    }
+    = CONST
     ;
 
 FunctionSpecifier
-    = a:(INLINE / STDCALL) {
-      return a;
-    }
+    = INLINE
     ;
 
 FunctionDirectDeclarator
@@ -506,6 +500,7 @@ UnaryExpression
     / SIZEOF a:( a:UnaryExpression {return addPositionInfo({type:'UnaryExpression_Sizeof_Expr', Expression:a});}
       / LPAR a:TypeName RPAR {return addPositionInfo({type:'UnaryExpression_Sizeof_Type', TypeName:a});}
       ) {return a;}
+    / NewExpression
     ;
 
 UnaryOperator
@@ -518,7 +513,7 @@ UnaryOperator
     ;
     
 NewExpression 
-	= UnaryExpression /
+	= 
 	NEW a:TypeScopedMaybeTemplatedIdentifier b:(STAR*) c:(LBRK x:Expression RBRK { return x; })? {
     	return addPositionInfo({type:'NewExpression', TypeName: a, pointerRank: b.length, arraySizeExpression: c });
     } / 
@@ -527,10 +522,11 @@ NewExpression
     };
 
 CastExpression
-    = NewExpression
-    / a:(LPAR TypeName RPAR) b:CastExpression {
+    =
+    a:(LPAR TypeId RPAR) b:CastExpression {
       return addPositionInfo({type:'CastExpression', TypeName:a[1], Expression:b});
     }
+    / UnaryExpression
     ;
 
 MultiplicativeExpression
@@ -604,10 +600,11 @@ ConditionalExpression
     ;
 
 AssignmentExpression
-    = a:UnaryExpression b:AssignmentOperator c:AssignmentExpression {
+    = 
+    ConditionalExpression /
+    a:ScopedIdentifier b:AssignmentOperator c:AssignmentExpression {
       return addPositionInfo({type:'BinOpExpression', op:b, left:a, right:c});
     }
-    / ConditionalExpression
     ;
     
 AssignmentOperator
@@ -660,51 +657,79 @@ LineComment = "//" a:(!"\n" _)*  {return a.join('');};     // 6.4.9
 //  A.1.2  Keywords
 //-------------------------------------------------------------------------
 
-AUTO      = a:"auto"          !IdChar Spacing {return a;};
-BREAK     = a:"break"         !IdChar Spacing {return a;};
-CASE      = a:"case"          !IdChar Spacing {return a;};
-CHAR      = a:"char"          !IdChar Spacing {return a;};
-CONST     = a:"const"         !IdChar Spacing {return a;};
-CONTINUE  = a:"continue"      !IdChar Spacing {return a;};
-DEFAULT   = a:"default"       !IdChar Spacing {return a;};
-DELETE    = a:"delete"        !IdChar Spacing {return a;};
-DOUBLE    = a:"double"        !IdChar Spacing {return a;};
-DO        = a:"do"            !IdChar Spacing {return a;};
-ELSE      = a:"else"          !IdChar Spacing {return a;};
-ENUM      = a:"enum"          !IdChar Spacing {return a;};
-EXTERN    = a:"extern"        !IdChar Spacing {return a;};
-FLOAT     = a:"float"         !IdChar Spacing {return a;};
-FOR       = a:"for"           !IdChar Spacing {return a;};
-GOTO      = a:"goto"          !IdChar Spacing {return a;};
-IF        = a:"if"            !IdChar Spacing {return a;};
-INT       = a:"int"           !IdChar Spacing {return a;};
-INLINE    = a:"inline"        !IdChar Spacing {return a;};
-LONG      = a:"long"          !IdChar Spacing {return a;};
-NEW       = a:"new"           !IdChar Spacing {return a;};
-REGISTER  = a:"register"      !IdChar Spacing {return a;};
-RESTRICT  = a:"restrict"      !IdChar Spacing {return a;};
-RETURN    = a:"return"        !IdChar Spacing {return a;};
-SHORT     = a:"short"         !IdChar Spacing {return a;};
-SIGNED    = a:"signed"        !IdChar Spacing {return a;};
-SIZEOF    = a:"sizeof"        !IdChar Spacing {return a;};
-STATIC    = a:"static"        !IdChar Spacing {return a;};
-STRUCT    = a:"struct"        !IdChar Spacing {return a;};
-SWITCH    = a:"switch"        !IdChar Spacing {return a;};
-TYPEDEF   = a:"typedef"       !IdChar Spacing {return a;};
-UNION     = a:"union"         !IdChar Spacing {return a;};
-UNSIGNED  = a:"unsigned"      !IdChar Spacing {return a;};
-VOID      = a:"void"          !IdChar Spacing {return a;};
-VOLATILE  = a:"volatile"      !IdChar Spacing {return a;};
-WHILE     = a:"while"         !IdChar Spacing {return a;};
-BOOL      = a:"_Bool"         !IdChar Spacing {return a;};
-COMPLEX   = a:"_Complex"      !IdChar Spacing {return a;};
-STDCALL   = a:"_stdcall"      !IdChar Spacing {return a;};
-DECLSPEC  = a:"__declspec"    !IdChar Spacing {return a;};
-ATTRIBUTE = a:"__attribute__" !IdChar Spacing {return a;};
-NAMESPACE = a:"namespace"     !IdChar Spacing {return a;};
-USING     = a:"using"         !IdChar Spacing {return a;};
-TRUE      = a:"true"          !IdChar Spacing {return a;};
-FALSE     = a:"false"         !IdChar Spacing {return a;};
+ALIGNAS     = a:"alignas"               !IdChar Spacing {return a;};
+ALIGNOF     = a:"alignof"               !IdChar Spacing {return a;};
+ASM         = a:"asm"                   !IdChar Spacing {return a;};
+AUTO        = a:"auto"                  !IdChar Spacing {return a;};
+BOOL        = a:"bool"                  !IdChar Spacing {return a;};
+BREAK       = a:"break"                 !IdChar Spacing {return a;};
+CASE        = a:"case"                  !IdChar Spacing {return a;};
+CATCH       = a:"catch"                 !IdChar Spacing {return a;};
+CHAR        = a:"char"                  !IdChar Spacing {return a;};
+CHAR16_T    = a:"char16_t"              !IdChar Spacing {return a;};
+CHAR32_T    = a:"char32_t"              !IdChar Spacing {return a;};
+CLASS       = a:"class"                 !IdChar Spacing {return a;};
+CONST       = a:"const"                 !IdChar Spacing {return a;};
+CONSTEXPR   = a:"constexpr"             !IdChar Spacing {return a;};
+CONST_CAST  = a:"const_cast"            !IdChar Spacing {return a;};
+CONTINUE    = a:"continue"              !IdChar Spacing {return a;};
+DECLTYPE    = a:"decltype"              !IdChar Spacing {return a;};
+DEFAULT     = a:"default"               !IdChar Spacing {return a;};
+DELETE      = a:"delete"                !IdChar Spacing {return a;};
+DO          = a:"do"                    !IdChar Spacing {return a;};
+DOUBLE      = a:"double"                !IdChar Spacing {return a;};
+DYNAMIC_CAST = a:"dynamic_cast"         !IdChar Spacing {return a;};
+ELSE        = a:"else"                  !IdChar Spacing {return a;};
+ENUM        = a:"enum"                  !IdChar Spacing {return a;};
+EXPLICIT    = a:"explicit"              !IdChar Spacing {return a;};
+EXPORT      = a:"export"                !IdChar Spacing {return a;};
+EXTERN      = a:"extern"                !IdChar Spacing {return a;};
+FALSE       = a:"false"                 !IdChar Spacing {return a;};
+FLOAT       = a:"float"                 !IdChar Spacing {return a;};
+FOR         = a:"for"                   !IdChar Spacing {return a;};
+FRIEND      = a:"friend"                !IdChar Spacing {return a;};
+GOTO        = a:"goto"                  !IdChar Spacing {return a;};
+IF          = a:"if"                    !IdChar Spacing {return a;};
+INLINE      = a:"inline"                !IdChar Spacing {return a;};
+INT         = a:"int"                   !IdChar Spacing {return a;};
+LONG        = a:"long"                  !IdChar Spacing {return a;};
+MUTABLE     = a:"mutable"               !IdChar Spacing {return a;};
+NAMESPACE   = a:"namespace"             !IdChar Spacing {return a;};
+NEW         = a:"new"                   !IdChar Spacing {return a;};
+NOEXCEPT    = a:"noexcept"              !IdChar Spacing {return a;};
+NULLPTR     = a:"nullptr"               !IdChar Spacing {return a;};
+OPERATOR    = a:"operator"              !IdChar Spacing {return a;};
+PRIVATE     = a:"private"               !IdChar Spacing {return a;};
+PROTECTED   = a:"protected"             !IdChar Spacing {return a;};
+PUBLIC      = a:"public"                !IdChar Spacing {return a;};
+REGISTER    = a:"register"              !IdChar Spacing {return a;};
+REINTERPRET_CAST = a:"reinterpret_cast" !IdChar Spacing {return a;};
+RETURN      = a:"return"                !IdChar Spacing {return a;};
+SHORT       = a:"short"                 !IdChar Spacing {return a;};
+SIGNED      = a:"signed"                !IdChar Spacing {return a;};
+SIZEOF      = a:"sizeof"                !IdChar Spacing {return a;};
+STATIC      = a:"static"                !IdChar Spacing {return a;};
+STATIC_ASSERT = a:"static_assert"       !IdChar Spacing {return a;};
+STATIC_CAST = a:"static_cast"           !IdChar Spacing {return a;};
+STRUCT      = a:"struct"                !IdChar Spacing {return a;};
+SWITCH      = a:"switch"                !IdChar Spacing {return a;};
+TEMPLATE    = a:"template"              !IdChar Spacing {return a;};
+THIS        = a:"this"                  !IdChar Spacing {return a;};
+THREAD_LOCAL = a:"thread_local"         !IdChar Spacing {return a;};
+THROW       = a:"throw"                 !IdChar Spacing {return a;};
+TRUE        = a:"true"                  !IdChar Spacing {return a;};
+TRY         = a:"try"                   !IdChar Spacing {return a;};
+TYPEDEF     = a:"typedef"               !IdChar Spacing {return a;};
+TYPEID      = a:"typeid"                !IdChar Spacing {return a;};
+TYPENAME    = a:"typename"              !IdChar Spacing {return a;};
+UNION       = a:"union"                 !IdChar Spacing {return a;};
+UNSIGNED    = a:"unsigned"              !IdChar Spacing {return a;};
+USING       = a:"using"                 !IdChar Spacing {return a;};
+VIRTUAL     = a:"virtual"               !IdChar Spacing {return a;};
+VOID        = a:"void"                  !IdChar Spacing {return a;};
+VOLATILE    = a:"volatile"              !IdChar Spacing {return a;};
+WCHAR_T     = a:"wchar_t"               !IdChar Spacing {return a;};
+WHILE       = a:"while"                 !IdChar Spacing {return a;};
 
 Keyword
     = ( "auto"
@@ -713,20 +738,23 @@ Keyword
       / "char"
       / "const"
       / "continue"
+      / "decltype"
       / "default"
       / "delete"
-      / "double"
       / "do"
+      / "double"
       / "else"
       / "enum"
       / "extern"
+      / "false"
       / "float"
       / "for"
       / "goto"
       / "if"
-      / "int"
       / "inline"
+      / "int"
       / "long"
+      / "namespace"
       / "new"
       / "register"
       / "restrict"
@@ -737,22 +765,14 @@ Keyword
       / "static"
       / "struct"
       / "switch"
+      / "true"
       / "typedef"
       / "union"
       / "unsigned"
+      / "using"
       / "void"
       / "volatile"
       / "while"
-      / "_Bool"
-      / "_Complex"
-      / "_Imaginary"
-      / "_stdcall"
-      / "__declspec"
-      / "__attribute__"
-      / "namespace"
-      / "using"
-      / "true"
-      / "false"
       )
     !IdChar ;
 
@@ -762,6 +782,52 @@ Keyword
 //  The standard does not explicitly state that identifiers must be
 //  distinct from keywords, but it seems so.
 //-------------------------------------------------------------------------
+
+TypeId
+    = a:TypeSpecifier_generic_cv /* b:AttributeSpecifier* */ AbstractDeclarator? { return addPositionInfo({ type: "TypeId", spec: a/*, attributes: b*/})}
+    ;
+
+TypeSpecifier_generic_cv
+    =
+    CONST TypeSpecifier_generic { a.mod_cv = "c"; return a; } /
+    TypeSpecifier_generic CONST { a.mod_cv = "c"; return a; } /
+    VOLATILE TypeSpecifier_generic { a.mod_cv = "v"; return a; } /
+    TypeSpecifier_generic VOLATILE { a.mod_cv = "v"; return a; } /
+    TypeSpecifier_generic 
+    ;
+
+TypeSpecifier_generic
+    = 
+    BOOL        { return { type: "TypeSpecifier_basic", id: "b" } } /
+    FLOAT       { return { type: "TypeSpecifier_basic", id: "f" } } /
+    DOUBLE      { return { type: "TypeSpecifier_basic", id: "d" } } /
+    LONG DOUBLE { return { type: "TypeSpecifier_basic", id: "ld" } } /
+    VOID        { return { type: "TypeSpecifier_basic", id: "v" } } /
+    AUTO        { return { type: "TypeSpecifier_basic", id: "a" } } /
+    SIGNED a:TypeSpecifier_integral { a.mod_sign = "s"; return a; } /
+    a:TypeSpecifier_integral SIGNED { a.mod_sign = "s"; return a; }  /
+    UNSIGNED a:TypeSpecifier_integral { a.mod_sign = "u"; return a; }  /
+    a:TypeSpecifier_integral UNSIGNED { a.mod_sign = "u"; return a; }  /
+    TypeSpecifier_integral /
+    DECLTYPE LPAR AUTO RPAR { return { type: "TypeSpecifier_basic", id: "a" } } /
+    DECLTYPE LPAR e:Expression RPAR { return { type: "TypeSpecifier_decltype", expression:e } } /
+    ScopedMaybeTemplatedIdentifier
+    /* elaborated-type-specifier */
+    ;
+
+TypeSpecifier_integral
+    = 
+    CHAR      { return { type: "TypeSpecifier_basic", id: "c" } } /
+    INT SHORT { return { type: "TypeSpecifier_basic", id: "si" } } /
+    SHORT INT { return { type: "TypeSpecifier_basic", id: "si" } } /
+    SHORT     { return { type: "TypeSpecifier_basic", id: "si" } } /
+    INT LONG  { return { type: "TypeSpecifier_basic", id: "li" } } /
+    LONG INT  { return { type: "TypeSpecifier_basic", id: "li" } } /
+    LONG LONG INT { return { type: "TypeSpecifier_basic", id: "lli" } } /
+    LONG LONG { return { type: "TypeSpecifier_basic", id: "lli" } } /
+    LONG      { return { type: "TypeSpecifier_basic", id: "li" } } /
+    INT       { return { type: "TypeSpecifier_basic", id: "i" } }
+    ;
 
 ScopedIdentifier
     = a:SCOPEOP? b:(ac:Identifier SCOPEOP {return ac;})* c:Identifier {
