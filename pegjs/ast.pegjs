@@ -599,12 +599,14 @@ ConditionalExpression
     }
     ;
 
+// TODO: implement pm-expression and assign the left-hand side of AssignmentExpression to PmExpression
+
 AssignmentExpression
     = 
-    ConditionalExpression /
-    a:ScopedIdentifier b:AssignmentOperator c:AssignmentExpression {
-      return addPositionInfo({type:'BinOpExpression', op:b, left:a, right:c});
-    }
+    a:UnaryExpression b:AssignmentOperator c:AssignmentExpression {
+      return addPositionInfo({type:'BinOpExpression', left: a, op:b, right:c});
+    } /
+    ConditionalExpression
     ;
     
 AssignmentOperator
@@ -821,10 +823,10 @@ TypeSpecifier_integral
     INT SHORT { return { type: "TypeSpecifier_basic", id: "si" } } /
     SHORT INT { return { type: "TypeSpecifier_basic", id: "si" } } /
     SHORT     { return { type: "TypeSpecifier_basic", id: "si" } } /
-    INT LONG  { return { type: "TypeSpecifier_basic", id: "li" } } /
-    LONG INT  { return { type: "TypeSpecifier_basic", id: "li" } } /
     LONG LONG INT { return { type: "TypeSpecifier_basic", id: "lli" } } /
     LONG LONG { return { type: "TypeSpecifier_basic", id: "lli" } } /
+    INT LONG  { return { type: "TypeSpecifier_basic", id: "li" } } /
+    LONG INT  { return { type: "TypeSpecifier_basic", id: "li" } } /
     LONG      { return { type: "TypeSpecifier_basic", id: "li" } } /
     INT       { return { type: "TypeSpecifier_basic", id: "i" } }
     ;
