@@ -8,14 +8,14 @@
   };
 
   function addPositionInfo(r){
-      //var posDetails = peg$computePosDetails(peg$currPos);
-      //r.eLine = posDetails.line;
-      //r.eColumn = posDetails.column;
-      //r.eOffset = peg$currPos;
-      //posDetails = peg$computePosDetails(peg$savedPos);
-      //r.sLine = posDetails.line;
-      //r.sColumn = posDetails.column;
-      //r.sOffset = peg$savedPos;
+      var posDetails = peg$computePosDetails(peg$currPos);
+      r.eLine = posDetails.line;
+      r.eColumn = posDetails.column;
+      r.eOffset = peg$currPos;
+      posDetails = peg$computePosDetails(peg$savedPos);
+      r.sLine = posDetails.line;
+      r.sColumn = posDetails.column;
+      r.sOffset = peg$savedPos;
       return r;
   }
 }
