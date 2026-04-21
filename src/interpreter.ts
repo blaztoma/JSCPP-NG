@@ -230,6 +230,11 @@ export interface XTypeId extends StatementMeta {
     type: "TypeId"
     spec: TypeSpecifier,
 }
+export interface XExplicitTypeInitializerExpr extends StatementMeta {
+    type: "ExplicitTypeInitializerExpr"
+    targetType: XTypeId,
+    initializer: XInitializerArray,
+}
 export type TypeSpecifier = TypeSpecifier_basic | TypeSpecifier_decltype | XScopedMaybeTemplatedIdentifier;
 export type TypeSpecifier_basic = {
     type: "TypeSpecifier_basic",
@@ -258,8 +263,6 @@ type DirectDeclaratorResult = {
 }
 
 function resolveTypeId(rt: CRuntime, s: XTypeId): MaybeLeftCV<ObjectType> | "VOID" | "AUTO" {
-
-    debugger;
     const isConst = ("mod_cv" in s.spec) && ((s.spec as any).mod_cv === "c");
     switch (s.spec.type) {
         case "TypeSpecifier_basic":
@@ -300,8 +303,6 @@ function resolveTypeId(rt: CRuntime, s: XTypeId): MaybeLeftCV<ObjectType> | "VOI
             (r.v as any).isConst = isConst
             return r as MaybeLeftCV<ObjectType>;
     }
-
-
 }
 
 export class Interpreter extends BaseInterpreter<InterpStatement> {
@@ -896,6 +897,19 @@ export class Interpreter extends BaseInterpreter<InterpStatement> {
                         return ilist;
                     }
                 }
+            },
+            *ExplicitTypeInitializerExpr(interp, s: XExplicitTypeInitializerExpr, param) {
+                ({
+                    rt
+                } = interp);
+                const targetType = resolveTypeId(rt, s.targetType);
+                if (targetType === "VOID") {
+                    rt.raiseException("Explicit type initialisation error: Target type cannot be void.")
+                }
+                if (targetType === "AUTO") {
+                    rt.raiseException("Explicit type initialisation error: Target type cannot be auto.")
+                }
+                return yield* interp.visit(interp, s.initializer, { typeHint: targetType.t, ...param })
             },
             *Label_case(interp, s, param) {
                 ({

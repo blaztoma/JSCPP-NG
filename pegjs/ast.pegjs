@@ -406,6 +406,7 @@ TypedefName
     = Identifier
     ;
 
+/* initializer-list */
 InitializerListExpr = LWING a:(x:InitializerList COMMA? {return x;})? RWING {return addPositionInfo({type:'Initializer_array', Initializers:a ?? []});}
 
 Initializer
@@ -435,7 +436,8 @@ PrimaryExpression
     ;
 
 PostfixExpression
-    = a:( PrimaryExpression )
+    = a:TypeId b:InitializerListExpr { return addPositionInfo({type: "ExplicitTypeInitializerExpr", targetType: a, initializer: b}); } /
+    a:( PrimaryExpression )
       b:( LBRK c:Expression RBRK {return [0,c];}
       / LPAR c:ArgumentExpressionList? RPAR {return [1,c?c:[]];}
       / DOT c:Identifier {return [2,c];}
@@ -478,8 +480,11 @@ PostfixExpression
           return ret.Expression;
         } else
           return a;
-      }
+      } /
+    a:TypeId /* TODO: change */ b:InitializerListExpr
     ;
+
+
 
 ArgumentExpressionList
     = a:AssignmentExpression b:(COMMA AssignmentExpression)* {
@@ -1081,3 +1086,4 @@ SCOPEOP    =  a:"::"        Spacing {return a;};
 EOT        =  !_    ;
 
 _          =  . ;
+
