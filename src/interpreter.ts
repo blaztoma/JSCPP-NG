@@ -1470,6 +1470,16 @@ export class Interpreter extends BaseInterpreter<InterpStatement> {
                         return rt.expectValue(result);
 
                     }
+                    const fobj = variables.asClass(ret);
+                    if (fobj !== null) {
+                        const callInst = rt.getOpByParams("{global}", "o(_call)", [fobj, ...args], []);
+                        const resultOrGen = rt.invokeCall(callInst, [], fobj, ...args);
+                        const result = asResult(resultOrGen) ?? (yield* resultOrGen as Gen<MaybeUnboundVariable | "VOID">);
+                        if (result === "VOID") {
+                            return "VOID";
+                        }
+                        return rt.expectValue(result);
+                    }
                     rt.raiseException("Method invocation error: Expected a function")
                 }
             },

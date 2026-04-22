@@ -1,7 +1,8 @@
+import { asResult } from "../interpreter";
 import { CRuntime, MemberMap } from "../rt";
 import * as common from "../shared/common";
 import { StringVariable } from "../shared/string_utils";
-import { AbstractTemplatedClassType, AbstractVariable, ArithmeticSig, InitArithmeticVariable, InitIndexPointerVariable, InitValue, ObjectType, Variable, variables } from "../variables";
+import { AbstractTemplatedClassType, AbstractVariable, ArithmeticSig, Gen, InitArithmeticVariable, InitIndexPointerVariable, InitValue, MaybeUnboundVariable, ObjectType, Variable, variables } from "../variables";
 
 /* 
  * Generic function object type.
@@ -19,7 +20,7 @@ type FOVariable<TI extends string, T extends Variable> = AbstractVariable<FOType
  * Generic function object value.
  */
 interface FOValue<TI extends string, T extends Variable> extends InitValue<FOVariable<TI, T>> {
-    members: { }
+    members: {}
 }
 
 export = {
@@ -47,6 +48,48 @@ export = {
                 }
             };
         }
+        common.regOps(rt, [
+            {
+                op: "o(_call)",
+                type: "!ParamObject FUNCTION BOOL ( CLREF CLASS greater < ?0 > CLREF ?0 CLREF ?0 )",
+                templateTypes: [0],
+                *default(rt: CRuntime, _templateTypes: ObjectType[], fnobj: FOVariable<"greater", Variable>, lhs: Variable, rhs: Variable) {
+                    if (fnobj.t.templateSpec[0].sig in variables.arithmeticSig) {
+                        return variables.arithmetic("BOOL", (rt.arithmeticValue(lhs) > rt.arithmeticValue(rhs)) ? 1 : 0, null);
+                    }
+                    const callInst = rt.tryGetOpByParams("{global}", "o(_>_)", [lhs, rhs], []);
+                    if (callInst === null) {
+                        rt.raiseException(`${rt.makeTypeString(fnobj.t, false, false)}(): No comparison function is found.`);
+                    }
+                    const resultOrGen = rt.invokeCall(callInst, [], lhs, rhs);
+                    const result = asResult(resultOrGen) ?? (yield* resultOrGen as Gen<MaybeUnboundVariable | "VOID">);
+                    if (result === "VOID") {
+                        rt.raiseException(`${rt.makeTypeString(fnobj.t, false, false)}(): Expected boolean return value from operator >(), got void.`);
+                    }
+                    return variables.arithmetic("BOOL", rt.arithmeticValue(result) !== 0 ? 1 : 0, null);
+                }
+            },
+            {
+                op: "o(_call)",
+                type: "!ParamObject FUNCTION BOOL ( CLREF CLASS less < ?0 > CLREF ?0 CLREF ?0 )",
+                templateTypes: [0],
+                *default(rt: CRuntime, _templateTypes: ObjectType[], fnobj: FOVariable<"less", Variable>, lhs: Variable, rhs: Variable) {
+                    if (fnobj.t.templateSpec[0].sig in variables.arithmeticSig) {
+                        return variables.arithmetic("BOOL", (rt.arithmeticValue(lhs) < rt.arithmeticValue(rhs)) ? 1 : 0, null);
+                    }
+                    const callInst = rt.tryGetOpByParams("{global}", "o(_<_)", [lhs, rhs], []);
+                    if (callInst === null) {
+                        rt.raiseException(`${rt.makeTypeString(fnobj.t, false, false)}(): No comparison function is found.`);
+                    }
+                    const resultOrGen = rt.invokeCall(callInst, [], lhs, rhs);
+                    const result = asResult(resultOrGen) ?? (yield* resultOrGen as Gen<MaybeUnboundVariable | "VOID">);
+                    if (result === "VOID") {
+                        rt.raiseException(`${rt.makeTypeString(fnobj.t, false, false)}(): Expected boolean return value from operator <(), got void.`);
+                    }
+                    return variables.arithmetic("BOOL", rt.arithmeticValue(result) !== 0 ? 1 : 0, null);
+                }
+            },
+        ]);
         // NOTE: These functions are explicit (do not allow param conversions)
         // This should be noted in the future
         common.regGlobalFuncs(rt, [
