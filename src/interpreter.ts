@@ -909,7 +909,11 @@ export class Interpreter extends BaseInterpreter<InterpStatement> {
                 if (targetType === "AUTO") {
                     rt.raiseException("Explicit type initialisation error: Target type cannot be auto.")
                 }
-                return yield* interp.visit(interp, s.initializer, { typeHint: targetType.t, ...param })
+                const _typeHint = param.typeHint;
+                param.typeHint = targetType.t;
+                let retv = yield* interp.visit(interp, s.initializer, { typeHint: targetType.t, ...param });
+                param.typeHint = _typeHint;
+                return retv;
             },
             *Label_case(interp, s, param) {
                 ({
