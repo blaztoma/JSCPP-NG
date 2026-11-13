@@ -592,7 +592,7 @@ function parseFunctionMatchInner(parser: LLParser, scope: NonTerm, pair: Functio
                                     debugger;
                                     tryMatchMemberType(superParamArray, tmpSuperRadical, wsubPrefix, wsuperPrefix);
                                 } else {
-                                    const subParamInline = subParamArray.join(" ");
+                                    const subParamInline = (subParamArray[0] === "ARRAY" ? ["PTR", ...subParamArray.slice(1, -1)] : subParamArray).join(" ");
                                     const superParamInline = superParamArray.join(" ");
                                     if (superParamInline in ct.implicit && subParamInline in ct.implicit[superParamInline]) {
                                         retv = null;
@@ -644,7 +644,7 @@ function parseFunctionMatchInner(parser: LLParser, scope: NonTerm, pair: Functio
                             } else if (superParamArray[0] === "MEMBERTYPE") {
                                 tryMatchMemberType(superParamArray, tmpSuperRadical, [], []);
                             }
-                            const subParamInline = subParamArray.join(" ");
+                            const subParamInline = (subParamArray[0] === "ARRAY" ? ["PTR", ...subParamArray.slice(1, -1)] : subParamArray).join(" ");
                             const superParamInline = superParamArray.join(" ");
                             if (superParamInline in ct.implicit && subParamInline in ct.implicit[superParamInline]) {
                                 retv = null;

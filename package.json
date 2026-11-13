@@ -28,7 +28,7 @@
   "type": "module",
   "scripts": {
     "prebuild": "node build_pegjs.js",
-    "build": "npx webpack",
+    "build": "webpack",
     "debugger-test": "mocha --require ts-node/register unit-tests/test-debugger.ts --bail",
     "unit-test": "mocha --require ts-node/register unit-tests/test.ts --bail",
     "integration-test": "mocha --require ts-node/register integration-tests/test.ts --bail",
@@ -69,5 +69,8 @@
   "license": "MIT",
   "directories": {
     "test": "test"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

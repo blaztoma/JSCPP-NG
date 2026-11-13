@@ -1,4 +1,5 @@
 import * as interp from "./interpreter";
+import { asResult } from "./interpreter";
 import { AbstractVariable, AnyType, ArithmeticBigSig, ArithmeticBigType, ArithmeticBigVariable, ArithmeticNumSig, ArithmeticNumType, ArithmeticNumVariable, ArithmeticSig, ArithmeticType, ArithmeticVariable, CFunction, ClassType, ClassVariable, Function, FunctionType, Gen, InitArithmeticBigVariable, InitArithmeticNumVariable, InitArithmeticVariable, InitClassVariable, InitIndexPointerVariable, InitPointerVariable, InitVariable, LValueHolder, LValueIndexHolder, MaybeLeft, MaybeLeftCV, MaybeUnboundVariable, ObjectType, PointeeVariable, PointerType, PointerVariable, ResultOrGen, TrueIndexPointerVariable, UnboundValue, Variable, variables } from "./variables";
 import { TypeLookup, FunctionMatchResult, abstractFunctionReturnSig } from "./typelookup";
 import { fromUtf8CharArray, toUtf8CharArray } from "./utf8";
@@ -697,7 +698,8 @@ export class CRuntime {
                         ret = "VOID";
                     } else {
                         if (ret instanceof Array && (ret[0] === "return")) {
-                            ret = rt.cast(retType.t, ret[1]);
+                            const castYield = rt.cast(retType.t, rt.expectValue(ret[1]));
+                            ret = asResult(castYield) ?? (yield* castYield as Gen<InitVariable>);
                         } else if (name === "main") {
                             ret = variables.arithmeticNum("I32", 0, null);
                         } else {
@@ -967,7 +969,7 @@ export class CRuntime {
                     this.ct.implicit[dstTypeInline] = {};
                 }
                 const srcArgStart = fnsig.inline.indexOf("(") + 2;
-                const srcTypeInline = fnsig.inline.slice(srcArgStart, fnsig.inline.length - srcArgStart - 2);
+                const srcTypeInline = fnsig.inline.slice(srcArgStart, -2);
                 const abstractSig = abstractFunctionReturnSig(fnsig.array).join(" ");
                 this.ct.implicit[dstTypeInline][srcTypeInline] = { fnsig: abstractSig, domain: domainInlineSig };
             }
@@ -1475,6 +1477,12 @@ export class CRuntime {
                     }
                 }
             }
+        }
+        // A value return can use the same converting constructor as initialisation.
+        // Resolve the constructor normally rather than special-casing std::string.
+        if (target.sig === "CLASS") {
+            const constructor = this.tryGetFuncByParams(target, "o(_ctor)", [v], []);
+            if (constructor !== null) return this.invokeCall(constructor, [], v) as ResultOrGen<InitVariable>;
         }
         this.raiseException("Cast: Type error or not yet implemented");
     };

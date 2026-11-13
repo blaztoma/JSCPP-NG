@@ -231,6 +231,65 @@ export = {
             rt.regFunc(ctorHandler.default, thisType, ctorHandler.op, rt.typeSignature(ctorHandler.type), [-1], null);
         }
 
+        // Search byte sequences, including embedded NULs in string/count overloads.
+        function findText(rt: CRuntime, text: StringVariable, needle: number[], pos: number): InitArithmeticNumVariable {
+            const size = text.members._size.value;
+            if (pos < 0 || pos > size) return variables.arithmeticNum("I32", -1, null);
+            if (needle.length === 0) return variables.arithmeticNum("I32", pos, null);
+            const ptr = variables.asTrueIndexPointerOfElem(text.members._ptr, variables.uninitArithmeticNum("I8", null));
+            if (ptr !== null) {
+                for (let i = pos; i + needle.length <= size; i++) {
+                    let matched = true;
+                    for (let j = 0; j < needle.length; j++) {
+                        if (rt.arithmeticNumValue2(variables.arrayMember(ptr.pointee, ptr.index + i + j)) !== needle[j]) {
+                            matched = false;
+                            break;
+                        }
+                    }
+                    if (matched) return variables.arithmeticNum("I32", i, null);
+                }
+            }
+            return variables.arithmeticNum("I32", -1, null);
+        }
+        function needleBytes(rt: CRuntime, value: Variable, count?: number): number[] {
+            if (value.t.sig === "I8") return [rt.arithmeticNumValue2(value as ArithmeticNumVariable)];
+            if (value.t.sig === "CLASS") {
+                const text = value as StringVariable;
+                return needleBytes(rt, text.members._ptr, text.members._size.value);
+            }
+            if (count !== undefined && count < 0) rt.raiseException("string::find(): invalid character count");
+            if (count === 0) return [];
+            const ptr = variables.asTrueIndexPointerOfElem(value, variables.uninitArithmeticNum("I8", null))
+                ?? rt.raiseException("string::find(): expected a valid character pointer");
+            const bytes: number[] = [];
+            for (let i = 0; count === undefined || i < count; i++) {
+                const byte = rt.arithmeticNumValue2(variables.arrayMember(ptr.pointee, ptr.index + i));
+                if (count === undefined && byte === 0) break;
+                bytes.push(byte);
+            }
+            return bytes;
+        }
+        const findHandlers: common.FunHandler[] = [];
+        for (const needleType of ["I8", "PTR I8", "CLREF CLASS string < >"]) {
+            for (const withPosition of [false, true]) {
+                findHandlers.push({
+                    op: "find",
+                    type: "FUNCTION I32 ( CLREF CLASS string < > " + needleType + (withPosition ? " I32" : "") + " )",
+                    default(rt: CRuntime, _types, ...args: Variable[]): InitArithmeticNumVariable {
+                        return findText(rt, args[0] as StringVariable, needleBytes(rt, args[1]),
+                            withPosition ? rt.arithmeticNumValue2(args[2] as ArithmeticNumVariable) : 0);
+                    }
+                });
+            }
+        }
+        findHandlers.push({
+            op: "find",
+            type: "FUNCTION I32 ( CLREF CLASS string < > PTR I8 I32 I32 )",
+            default(rt: CRuntime, _types, ...args: Variable[]): InitArithmeticNumVariable {
+                return findText(rt, args[0] as StringVariable, needleBytes(rt, args[1], rt.arithmeticNumValue2(args[3] as ArithmeticNumVariable)), rt.arithmeticNumValue2(args[2] as ArithmeticNumVariable));
+            }
+        });
+
         common.regMemberFuncs(rt, "string", [
             {
                 op: "empty",
@@ -294,25 +353,7 @@ export = {
                     return str;
                 }
             },
-            {
-                op: "find",
-                type: "FUNCTION I32 ( LREF CLASS string < > I8 )",
-                default(rt: CRuntime, _templateTypes, ...args: Variable[]): InitArithmeticNumVariable {
-                    const [l, r] = args as [StringVariable, InitArithmeticNumVariable];
-                    const lptr = variables.asTrueIndexPointerOfElem(l.members._ptr, variables.uninitArithmeticNum("I8", null));
-                    if (lptr === null) {
-                        return variables.arithmeticNum("I32", -1, null);
-                    }
-                    const lsz = l.members._size.value;
-                    for (let i = 0; i < lsz; i++) {
-                        const chr = rt.arithmeticValue(variables.arrayMember(lptr.pointee, lptr.index + i));
-                        if (chr === r.value) {
-                            return variables.arithmeticNum("I32", i, null);
-                        }
-                    }
-                    return variables.arithmeticNum("I32", -1, null);
-                }
-            },
+            ...findHandlers,
             {
                 op: "replace",
                 type: "FUNCTION LREF CLASS string < > ( LREF CLASS string < > I32 I32 CLREF CLASS string < > )",

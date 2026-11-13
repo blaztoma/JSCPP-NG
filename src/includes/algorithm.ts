@@ -93,6 +93,49 @@ export = {
             }
             return mini;
         }
+        // Unary and binary transform share iterator operations with the other algorithms.
+        // Yield through callbacks so interactive input, stepping and cancellation still work.
+        function* transform_inner(rt: CRuntime, first: Variable, last: Variable,
+            second: Variable | null, output: Variable, operation: Variable): Gen<Variable> {
+            // Array arguments must decay to independent iterator values. Advancing
+            // them must never move the caller's array/pointer or clone its elements.
+            function copyIterator(value: Variable): Variable {
+                const ptr = variables.asInitIndexPointer(value);
+                if (ptr !== null) return ptr.pointee === null
+                    ? variables.indexNullPointer(ptr.t.pointee, ptr.index, "SELF")
+                    : variables.indexPointer(ptr.pointee, ptr.index, false, "SELF");
+                return variables.clone(rt, value, "SELF");
+            }
+            first = copyIterator(first);
+            last = copyIterator(last);
+            output = copyIterator(output);
+            if (second !== null) second = copyIterator(second);
+            const inputOps = getIterSymbols(first, last);
+            const outputOps = getIterSymbols(output, output);
+            const secondOps = second === null ? null : getIterSymbols(second, second);
+            const direct = variables.asTrueDirectPointer(operation);
+            const fn = variables.asFunction(operation) ?? (direct === null ? null : variables.asFunction(direct.pointee));
+            const object = variables.asClass(operation);
+            if (fn === null && object === null) rt.raiseException("transform(): expected a callable operation");
+            while (yield* common.invokeCmp(rt, inputOps.neq, first, last)) {
+                const values = [yield* common.invokeDeref(rt, "transform", inputOps.deref, first)];
+                if (second !== null && secondOps !== null) {
+                    values.push(yield* common.invokeDeref(rt, "transform", secondOps.deref, second));
+                }
+                const call = fn !== null ? rt.invokeCallFromVariable(fn, ...values)
+                    : rt.invokeCall(rt.getOpByParams("{global}", "o(_call)", [object!, ...values], []), [], object!, ...values);
+                const value = asResult(call) ?? (yield* call as Gen<MaybeUnboundVariable | "VOID">);
+                if (value === "VOID") rt.raiseException("transform(): operation must return a value");
+                const target = yield* common.invokeDeref(rt, "transform", outputOps.deref, output);
+                const result = rt.unbound(value);
+                yield* common.invokeSet(rt, "transform", rt.getOpByParams("{global}", "o(_=_)", [target, result], []), target, result);
+                yield* common.invokePp(rt, "transform", inputOps.pp, first);
+                yield* common.invokePp(rt, "transform", outputOps.pp, output);
+                if (second !== null && secondOps !== null) yield* common.invokePp(rt, "transform", secondOps.pp, second);
+            }
+            return output;
+        }
+
         type IterSymbols = {
             neq: FunctionCallInstance,
             pp: FunctionCallInstance,
@@ -275,6 +318,34 @@ export = {
         // JavaScript Array.sort() is always stable
         //rt.regFunc(sort_inner, "global", "stable_sort", ["?"], rt.voidTypeLiteral);
         common.regGlobalFuncs(rt, [
+            {
+                op: "transform",
+                type: "!ParamObject !ParamObject !Parametric !Parametric FUNCTION ?1 ( ?0 ?0 ?1 PTR FUNCTION ?2 ( ?3 ) )",
+                *default(rt: CRuntime, _types, ...args: Variable[]): Gen<Variable> {
+                    return yield* transform_inner(rt, args[0], args[1], null, args[2], args[3]);
+                }
+            },
+            {
+                op: "transform",
+                type: "!ParamObject !ParamObject FUNCTION ?1 ( ?0 ?0 ?1 CLREF Class )",
+                *default(rt: CRuntime, _types, ...args: Variable[]): Gen<Variable> {
+                    return yield* transform_inner(rt, args[0], args[1], null, args[2], args[3]);
+                }
+            },
+            {
+                op: "transform",
+                type: "!ParamObject !ParamObject !ParamObject !Parametric !Parametric !Parametric FUNCTION ?2 ( ?0 ?0 ?1 ?2 PTR FUNCTION ?3 ( ?4 ?5 ) )",
+                *default(rt: CRuntime, _types, ...args: Variable[]): Gen<Variable> {
+                    return yield* transform_inner(rt, args[0], args[1], args[2], args[3], args[4]);
+                }
+            },
+            {
+                op: "transform",
+                type: "!ParamObject !ParamObject !ParamObject FUNCTION ?2 ( ?0 ?0 ?1 ?2 CLREF Class )",
+                *default(rt: CRuntime, _types, ...args: Variable[]): Gen<Variable> {
+                    return yield* transform_inner(rt, args[0], args[1], args[2], args[3], args[4]);
+                }
+            },
             {
                 op: "sort",
                 type: "!ParamObject FUNCTION VOID ( PTR ?0 PTR ?0 )",

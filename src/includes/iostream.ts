@@ -129,7 +129,7 @@ export = {
             return stubGenerator();
         }
 
-        const whitespaceChars = [0, 9, 10, 32];
+        const whitespaceChars = [0, 9, 10, 11, 12, 13, 32];
 
         common.regOps(rt, [{
             op: "o(_>>_)",
